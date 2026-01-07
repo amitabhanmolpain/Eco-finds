@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Sprout, UserPlus } from 'lucide-react';
+import { signup } from '../utils/auth.js';
 
 const Signup = () => {
   const [email, setEmail] = useState('');
@@ -11,35 +12,31 @@ const Signup = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
 
-    // Password match check (kept)
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError("Passwords do not match");
       return;
     }
 
     setLoading(true);
 
-    //  Dummy signup logic (NO API)
-    setTimeout(() => {
-      // store user locally (optional)
-      localStorage.setItem(
-        'user',
-        JSON.stringify({
-          email,
-          displayName
-        })
-      );
+    const result = await signup({
+      email,
+      display_name: displayName,
+      password,
+      confirm_password: confirmPassword,
+    });
 
-      // mark as logged in
-      localStorage.setItem('isAuthenticated', 'true');
+    if (result.success) {
+      navigate("/home");
+    } else {
+      setError(result.error || "Signup failed");
+    }
 
-      setLoading(false);
-      navigate('/');
-    }, 800);
+    setLoading(false);
   };
 
   return (
