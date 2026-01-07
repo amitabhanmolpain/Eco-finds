@@ -1,19 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Package, Upload, ArrowLeft, Plus, CheckCircle, Leaf } from 'lucide-react';
-
-const LISTINGS_KEY = 'hc_listings';
-
-function loadListings() {
-  try { return JSON.parse(localStorage.getItem(LISTINGS_KEY) || '[]'); } catch (e) { return []; }
-}
-
-function saveListings(list) {
-  localStorage.setItem(LISTINGS_KEY, JSON.stringify(list));
-  window.dispatchEvent(new Event('hc_listings_updated'));
-}
+import { ProductContext } from '../../context/ProductContext';
 
 const AddListing = () => {
+  const navigate = useNavigate();
+  const { createProduct, loading } = useContext(ProductContext);
+  
   const [imageData, setImageData] = useState(null);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Furniture');
@@ -35,8 +28,6 @@ const AddListing = () => {
   const [workingConditionDesc, setWorkingConditionDesc] = useState('');
   const [status, setStatus] = useState('Available');
 
-  const navigate = useNavigate();
-
   const handleImage = (e) => {
     const f = e.target.files && e.target.files[0];
     if (!f) return;
@@ -47,7 +38,7 @@ const AddListing = () => {
     reader.readAsDataURL(f);
   };
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     // basic validation
     if (!title.trim() || !price) {
@@ -55,44 +46,37 @@ const AddListing = () => {
       return;
     }
 
-    const session = JSON.parse(localStorage.getItem('hc_session') || 'null');
-    const seller = session ? session.email : 'unknown';
-    const listings = loadListings();
-    const id = `L${Date.now()}`;
-    const dims = {
-      length: lengthVal || null,
-      width: widthVal || null,
-      height: heightVal || null,
-    };
-
-    const item = {
-      id,
-      image: imageData,
-      title,
-      category,
+    const productData = {
+      product_title: title,
+      category: category.charAt(0).toUpperCase() + category.slice(1),
       description,
       price: Number(price),
       quantity: Number(quantity || 1),
       condition,
-      year: year || null,
-      brand: brand || null,
-      model: model || null,
-      dimensions: dims,
-      weight: weight || null,
-      material: material || null,
-      color: color || null,
-      originalPackaging: !!originalPackaging,
-      manualIncluded: !!manualIncluded,
-      workingConditionDesc: workingConditionDesc || null,
+      year_of_manufacture: year || '2024',
+      brand: brand || '',
+      model: model || '',
+      dimensions: {
+        length: lengthVal ? Number(lengthVal) : 0,
+        width: widthVal ? Number(widthVal) : 0,
+        height: heightVal ? Number(heightVal) : 0,
+      },
+      weight: weight ? Number(weight) : 0,
+      material: material || '',
+      color: color || '',
+      original_packaging: !!originalPackaging,
+      manual_included: !!manualIncluded,
+      working_condition_description: workingConditionDesc || '',
       status,
-      seller,
-      createdAt: new Date().toISOString(),
+      image: imageData || '',
     };
 
-    listings.push(item);
-    saveListings(listings);
-    window.dispatchEvent(new CustomEvent('hc_toast', { detail: { message: 'Listing added successfully!', type: 'success' } }));
-    navigate('/my-listings');
+    const result = await createProduct(productData);
+    
+    if (result) {
+      window.dispatchEvent(new CustomEvent('hc_toast', { detail: { message: 'Product added successfully!', type: 'success' } }));
+      navigate('/');
+    }
   };
 
   return (
@@ -126,7 +110,7 @@ const AddListing = () => {
           <form onSubmit={submit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-1">
-            <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+            <label className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
               <Upload size={16} />
               Product Image
             </label>
@@ -259,9 +243,9 @@ const AddListing = () => {
             </select>
           </div>
 
-          <button type="submit" className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-xl">
+          <button type="submit" disabled={loading} className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed">
             <CheckCircle size={20} />
-            Add Item
+            {loading ? 'Adding...' : 'Add Item'}
           </button>
         </div>
       </form>

@@ -80,7 +80,7 @@ export async function currentUser() {
     const response = await fetch(`${API_URL}/me`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'token': token,
         'Content-Type': 'application/json',
       },
     });
