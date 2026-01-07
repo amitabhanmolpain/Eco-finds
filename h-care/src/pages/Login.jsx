@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Leaf, Mail, Lock, LogIn } from 'lucide-react';
-import { login } from '../utils/auth';
+import { Leaf, LogIn } from 'lucide-react';
+import { login } from '../utils/auth.js';
+
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -14,11 +15,11 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
+    
     const result = await login({ email, password });
     
     if (result.success) {
-      navigate('/');
+      navigate('/home');
     } else {
       setError(result.error || 'Login failed');
     }

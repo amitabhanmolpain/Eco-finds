@@ -1,8 +1,28 @@
-import React from "react";
-import { Link } from "react-router-dom";
-import { User, ArrowLeft, Edit, Settings, FileText, Package } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { User, ArrowLeft, Edit, Settings, FileText, Package, LogOut } from 'lucide-react';
+import { currentUser, logout } from '../utils/auth';
 
 const Profile = () => {
+  const [user, setUser] = useState(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const userData = await currentUser();
+      if (userData) {
+        setUser(userData);
+      }
+    };
+    fetchUser();
+  }, []);
+
+  const handleLogout = () => {
+    logout();
+    window.dispatchEvent(new CustomEvent('hc_toast', { detail: { message: 'Logged out successfully!', type: 'success' } }));
+    navigate('/login');
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-white p-6">
       <header className="flex items-center justify-between mb-8 max-w-4xl mx-auto">
@@ -10,7 +30,7 @@ const Profile = () => {
           <User size={32} />
           My Profile
         </h1>
-        <Link to="/" className="text-sm text-emerald-400 hover:text-emerald-300 font-semibold transition-colors flex items-center gap-1">
+        <Link to="/home" className="text-sm text-emerald-400 hover:text-emerald-300 font-semibold transition-colors flex items-center gap-1">
           <ArrowLeft size={16} />
           Back to Home
         </Link>
@@ -23,9 +43,9 @@ const Profile = () => {
               <User size={64} className="text-white" />
             </div>
             <div className="flex-1">
-              <h2 className="text-2xl font-bold mb-1">User Name</h2>
-              <p className="text-emerald-400 mb-4">user@example.com</p>
-              <div className="flex gap-3">
+              <h2 className="text-2xl font-bold mb-1">{user?.display_name || user?.username || 'User'}</h2>
+              <p className="text-emerald-400 mb-4">{user?.email || 'user@example.com'}</p>
+              <div className="flex gap-3 flex-wrap">
                 <button className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg flex items-center gap-2">
                   <Edit size={16} />
                   Edit Profile
@@ -33,6 +53,13 @@ const Profile = () => {
                 <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-semibold transition-all flex items-center gap-2">
                   <Settings size={16} />
                   Settings
+                </button>
+                <button 
+                  onClick={handleLogout}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-semibold transition-all flex items-center gap-2"
+                >
+                  <LogOut size={16} />
+                  Logout
                 </button>
               </div>
             </div>

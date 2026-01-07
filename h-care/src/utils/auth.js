@@ -1,9 +1,8 @@
-// API ENDPOINTS REMOVED - USING LOCAL STORAGE ONLY
+// Backend API configuration
+const API_URL = 'http://localhost:8000/api/auth';
+const TOKEN_KEY = 'token';
 
-const SESSION_KEY = 'hc_session';
-const TOKEN_KEY = 'access_token';
-
-// Signup function - local storage only (no backend)
+// Signup function - calls backend API
 export async function signup({ email, display_name, password, confirm_password }) {
   try {
     // Basic validation
@@ -12,61 +11,99 @@ export async function signup({ email, display_name, password, confirm_password }
       return { success: false, error: 'Passwords do not match' };
     }
 
-    // Store user data locally
-    const mockToken = 'local_token_' + Date.now();
-    localStorage.setItem(TOKEN_KEY, mockToken);
-    localStorage.setItem(SESSION_KEY, JSON.stringify({
-      email,
-      display_name,
-      id: 'user_' + Date.now()
-    }));
-    window.dispatchEvent(new CustomEvent('hc_toast', { detail: { message: 'Account created successfully!', type: 'success' } }));
-    return { success: true };
+    const response = await fetch(`${API_URL}/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, display_name, password }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      // Only store token, user data will be fetched from backend
+      localStorage.setItem(TOKEN_KEY, data.token);
+      window.dispatchEvent(new CustomEvent('hc_toast', { detail: { message: 'Account created successfully!', type: 'success' } }));
+      return { success: true };
+    } else {
+      window.dispatchEvent(new CustomEvent('hc_toast', { detail: { message: data.error || 'Signup failed', type: 'error' } }));
+      return { success: false, error: data.error || 'Signup failed' };
+    }
   } catch (error) {
-    window.dispatchEvent(new CustomEvent('hc_toast', { detail: { message: 'Signup failed. Please try again.', type: 'error' } }));
-    return { success: false, error: 'Signup failed. Please try again.' };
+    console.error('Signup error:', error);
+    window.dispatchEvent(new CustomEvent('hc_toast', { detail: { message: 'Connection error. Please check if the server is running.', type: 'error' } }));
+    return { success: false, error: 'Connection error. Please check if the server is running.' };
   }
 }
 
-// Login function - local storage only (no backend)
+// Login function - calls backend API
 export async function login({ email, password }) {
   try {
-    // Mock login - just store in localStorage
-    const mockToken = 'local_token_' + Date.now();
-    localStorage.setItem(TOKEN_KEY, mockToken);
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ 
-      email, 
-      username: email.split('@')[0],
-      display_name: email.split('@')[0],
-      id: 'user_' + Date.now()
-    }));
-    window.dispatchEvent(new CustomEvent('hc_toast', { detail: { message: 'Welcome back!', type: 'success' } }));
-    return { success: true };
+    const response = await fetch(`${API_URL}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      // Only store token, user data will be fetched from backend
+      localStorage.setItem(TOKEN_KEY, data.token);
+      window.dispatchEvent(new CustomEvent('hc_toast', { detail: { message: 'Welcome back!', type: 'success' } }));
+      return { success: true };
+    } else {
+      window.dispatchEvent(new CustomEvent('hc_toast', { detail: { message: data.error || 'Login failed', type: 'error' } }));
+      return { success: false, error: data.error || 'Login failed' };
+    }
   } catch (error) {
-    window.dispatchEvent(new CustomEvent('hc_toast', { detail: { message: 'Login failed. Please try again.', type: 'error' } }));
-    return { success: false, error: 'Login failed. Please try again.' };
+    console.error('Login error:', error);
+    window.dispatchEvent(new CustomEvent('hc_toast', { detail: { message: 'Connection error. Please check if the server is running.', type: 'error' } }));
+    return { success: false, error: 'Connection error. Please check if the server is running.' };
   }
 }
 
 export function logout() {
-  localStorage.removeItem(SESSION_KEY);
   localStorage.removeItem(TOKEN_KEY);
 }
 
-export function currentUser() {
+// Fetch current user from backend API (MongoDB)
+export async function currentUser() {
   try {
-    const raw = localStorage.getItem(SESSION_KEY);
     const token = localStorage.getItem(TOKEN_KEY);
     
-    if (!raw || !token) return null;
+    if (!token) return null;
+
+    const response = await fetch(`${API_URL}/me`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
     
-    return JSON.parse(raw);
+    if (response.ok && data.success) {
+      return data.user;
+    }
+    
+    // If token is invalid (401), clear it
+    if (response.status === 401 || !data.success) {
+      localStorage.removeItem(TOKEN_KEY);
+    }
+    
+    return null;
   } catch (e) {
+    console.error('Error fetching user:', e);
     return null;
   }
 }
 
-// Check if user is authenticated
+// Check if user is authenticated (token exists)
 export function isAuthenticated() {
   return !!localStorage.getItem(TOKEN_KEY);
 }

@@ -40,13 +40,14 @@ const App = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route
-            path="/"
+            path="/home"
             element={
               <RequireAuth>
                 <Landing />
               </RequireAuth>
             }
           />
+          <Route path="/" element={<Login />} />
           <Route path="/product/:id" element={<RequireAuth><Product /></RequireAuth>} />
           <Route path="/category/:name" element={<RequireAuth><Category /></RequireAuth>} />
           <Route path="/my-listings" element={<RequireAuth><MyListings /></RequireAuth>} />
