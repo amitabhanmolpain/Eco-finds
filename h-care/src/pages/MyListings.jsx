@@ -1,32 +1,35 @@
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Package, Plus, ArrowLeft, Leaf, Tag } from 'lucide-react';
-
-const LISTINGS_KEY = 'hc_listings';
-
-function loadListings() {
-  try {
-    return JSON.parse(localStorage.getItem(LISTINGS_KEY) || '[]');
-  } catch (e) { return []; }
-}
+import React, { useEffect, useState, useContext } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Package, Plus, ArrowLeft, Leaf, Tag, Trash2, Edit2 } from 'lucide-react';
+import { ProductContext } from '../../context/ProductContext';
+import { getCategoryImage } from '../utils/categoryImages';
 
 const MyListings = () => {
-  const [listings, setListings] = useState(loadListings());
+  const navigate = useNavigate();
+  const { getUserProducts, deleteProduct, loading } = useContext(ProductContext);
+  const [listings, setListings] = useState([]);
+
+  const fetchUserProducts = async () => {
+    const products = await getUserProducts();
+    setListings(products || []);
+  };
 
   useEffect(() => {
-    const handler = () => setListings(loadListings());
-    window.addEventListener('hc_listings_updated', handler);
-    return () => window.removeEventListener('hc_listings_updated', handler);
+    fetchUserProducts();
   }, []);
 
-  const myEmail = (() => {
-    try {
-      const s = localStorage.getItem('hc_session');
-      return s ? JSON.parse(s).email : null;
-    } catch (e) { return null; }
-  })();
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this listing?')) {
+      const success = await deleteProduct(id);
+      if (success) {
+        await fetchUserProducts();
+      }
+    }
+  };
 
-  const mine = listings.filter(l => l.seller === myEmail);
+  const handleEdit = (id) => {
+    navigate(`/edit-listing/${id}`);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-emerald-50">
@@ -65,7 +68,7 @@ const MyListings = () => {
           <div className="text-sm text-gray-600 mt-1">List your product</div>
         </Link>
 
-        {mine.length === 0 ? (
+        {listings.length === 0 ? (
           <div className="col-span-2 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-12 text-center border-2 border-dashed border-gray-300">
             <Package className="mx-auto text-gray-400 mb-4" size={64} />
             <h3 className="text-xl font-semibold text-gray-800 mb-2">No listings yet</h3>
@@ -75,24 +78,42 @@ const MyListings = () => {
             </Link>
           </div>
         ) : (
-          mine.map((l, i) => (
-            <div key={i} className="bg-white border-2 border-gray-200 p-6 rounded-xl hover:shadow-lg transition-all">
+          listings.map((l) => (
+            <div key={l._id} className="bg-white border-2 border-gray-200 p-6 rounded-xl hover:shadow-lg transition-all">
               <div className="w-full h-48 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg flex items-center justify-center mb-4">
                 {l.image ? (
-                  <img src={l.image} className="max-h-44 max-w-full object-contain" alt={l.title} />
+                  <img src={l.image} className="max-h-44 max-w-full object-contain" alt={l.product_title} />
                 ) : (
-                  <Package className="text-gray-400" size={64} />
+                  <img src={getCategoryImage(l.category)} className="max-h-44 max-w-full object-cover" alt={l.category} />
                 )}
               </div>
               <div>
-                <h3 className="font-bold text-lg text-gray-800 mb-2">{l.title}</h3>
-                <div className="flex items-center gap-2 flex-wrap mb-3">
+                <h3 className="font-bold text-lg text-gray-800 mb-2">{l.product_title}</h3>
+                <div className="flex items-center gap-2 flex-wrap mb-4">
                   <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg font-semibold text-sm flex items-center gap-1">
                     <Tag size={14} />
                     ₹{l.price}
                   </span>
                   <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm">{l.category}</span>
                   <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg text-sm">{l.status || 'Available'}</span>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEdit(l._id)}
+                    disabled={loading}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Edit2 size={16} />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(l._id)}
+                    disabled={loading}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Trash2 size={16} />
+                    Delete
+                  </button>
                 </div>
               </div>
             </div>
@@ -104,5 +125,7 @@ const MyListings = () => {
     </div>
   );
 };
+
+
 
 export default MyListings;

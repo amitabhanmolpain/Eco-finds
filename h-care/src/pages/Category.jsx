@@ -1,21 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, ShoppingCart, Package, Leaf, Tag } from 'lucide-react';
-import products from '../constants/products';
+import { ArrowLeft, ShoppingCart, Package, Leaf, Tag, Trash2, Edit2 } from 'lucide-react';
+import { ProductContext } from '../../context/ProductContext';
+import { getCategoryImage } from '../utils/categoryImages';
 
 const Category = () => {
   const { name } = useParams();
+  const { getProductsByCategory, loading } = useContext(ProductContext);
   const [items, setItems] = useState([]);
 
   useEffect(() => {
-    if (!name) return;
-    const matched = products.filter(p => (p.category || '').toLowerCase() === decodeURIComponent(name).toLowerCase());
-    // If no exact matches, try substring match
-    let results = matched;
-    if (results.length === 0) {
-      results = products.filter(p => (p.category || '').toLowerCase().includes(decodeURIComponent(name).toLowerCase()));
-    }
-    setItems(results.slice(0, 10));
+    const fetchCategoryProducts = async () => {
+      if (!name) return;
+      
+      const decodedName = decodeURIComponent(name);
+      const results = await getProductsByCategory(decodedName);
+      setItems(results || []);
+    };
+    
+    fetchCategoryProducts();
   }, [name]);
 
   const addToCart = (p) => {
@@ -25,7 +28,7 @@ const Category = () => {
       cart.push(p);
       localStorage.setItem('hc_cart', JSON.stringify(cart));
       window.dispatchEvent(new Event('hc_cart_updated'));
-      window.dispatchEvent(new CustomEvent('hc_toast', { detail: { message: `${p.title} added to cart`, type: 'success' } }));
+      window.dispatchEvent(new CustomEvent('hc_toast', { detail: { message: `${p.product_title} added to cart`, type: 'success' } }));
     } catch (e) {
       // ignore
     }
@@ -71,22 +74,17 @@ const Category = () => {
         )}
 
         {items.map(p => (
-          <div key={p.id} className="bg-white rounded-xl overflow-hidden shadow-lg border border-gray-200 hover:shadow-xl transition-all transform hover:scale-[1.02] flex flex-col">
-            <Link to={`/product/${p.id}`} className="no-underline text-inherit flex-1 flex flex-col">
+          <div key={p._id} className="bg-white rounded-xl overflow-hidden shadow-lg border border-gray-200 hover:shadow-xl transition-all transform hover:scale-[1.02] flex flex-col">
+            <Link to={`/product/${p._id}`} className="no-underline text-inherit flex-1 flex flex-col">
               <div className="h-48 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center relative overflow-hidden group">
                 {p.image ? (
-                  <img src={p.image} alt={p.title} className="max-h-44 object-contain group-hover:scale-110 transition-transform duration-300" />
+                  <img src={p.image} alt={p.product_title} className="max-h-44 object-contain group-hover:scale-110 transition-transform duration-300" />
                 ) : (
-                  <Package size={64} className="text-gray-300" />
-                )}
-                {p.discounted && (
-                  <div className="absolute top-3 right-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs px-3 py-1 rounded-full font-semibold shadow-md">
-                    Discount
-                  </div>
+                  <img src={getCategoryImage(p.category)} alt={p.category} className="max-h-44 object-cover group-hover:scale-110 transition-transform duration-300" />
                 )}
               </div>
               <div className="p-4 flex flex-col flex-1">
-                <div className="font-bold text-gray-800 text-lg mb-2">{p.title}</div>
+                <div className="font-bold text-gray-800 text-lg mb-2">{p.product_title}</div>
                 <div className="text-emerald-600 font-bold text-xl mb-2">₹{p.price}</div>
                 <div className="text-xs text-gray-500 mb-3 inline-block px-2 py-1 bg-gray-100 rounded-full w-fit capitalize">{p.category?.replace('_', ' ')}</div>
               </div>

@@ -1,35 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Package, ArrowLeft, ShoppingCart, Tag, User as UserIcon, Sparkles } from 'lucide-react';
-import products from '../constants/products';
-
-const LISTINGS_KEY = 'hc_listings';
-
-function loadListings() {
-  try {
-    return JSON.parse(localStorage.getItem(LISTINGS_KEY) || '[]');
-  } catch (e) {
-    return [];
-  }
-}
+import { ProductContext } from '../../context/ProductContext';
+import { getCategoryImage } from '../utils/categoryImages';
 
 const Product = () => {
   const { id } = useParams();
+  const { getProductById, products: relatedProducts, getAllProducts } = useContext(ProductContext);
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Find product in constants or localStorage (no API calls)
-    const allProducts = [...products, ...loadListings()];
-    const foundProduct = allProducts.find(p => p.id === id);
-    
-    if (foundProduct) {
-      setProduct(foundProduct);
-    } else {
-      setError('Product not found');
-    }
-    setLoading(false);
+    const fetchProduct = async () => {
+      setLoading(true);
+      const data = await getProductById(id);
+      
+      if (data) {
+        setProduct(data);
+        setError(null);
+      } else {
+        setError('Product not found');
+      }
+      setLoading(false);
+    };
+
+    fetchProduct();
+    // Also fetch all products for related items
+    getAllProducts();
   }, [id]);
 
   if (loading) {
@@ -55,7 +53,7 @@ const Product = () => {
       arr.push(product);
       localStorage.setItem('hc_cart', JSON.stringify(arr));
       window.dispatchEvent(new Event('hc_cart_updated'));
-      window.dispatchEvent(new CustomEvent('hc_toast', { detail: { message: `${product.title} added to cart`, type: 'success' } }));
+      window.dispatchEvent(new CustomEvent('hc_toast', { detail: { message: `${product.product_title || product.title} added to cart`, type: 'success' } }));
     } catch (e) {}
   };
 
@@ -87,12 +85,9 @@ const Product = () => {
           <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-200">
             <div className="w-full h-96 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl flex items-center justify-center mb-6">
               {product.image ? (
-                <img src={product.image} alt={product.title} className="max-h-88 max-w-full object-contain" />
+                <img src={product.image} alt={product.product_title || product.title} className="max-h-88 max-w-full object-contain" />
               ) : (
-                <div className="text-gray-400 text-center">
-                  <Package size={96} className="mx-auto mb-4" />
-                  <div className="text-lg">No Image Available</div>
-                </div>
+                <img src={getCategoryImage(product.category)} alt={product.category} className="max-h-88 max-w-full object-cover" />
               )}
             </div>
             <div className="flex justify-center gap-2">
@@ -104,7 +99,7 @@ const Product = () => {
 
           {/* Product Details */}
           <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-200">
-            <h1 className="text-3xl font-bold mb-4 text-gray-800">{product.title}</h1>
+            <h1 className="text-3xl font-bold mb-4 text-gray-800">{product.product_title || product.title}</h1>
             
             <div className="mb-6">
               <div className="text-4xl font-bold text-emerald-600 mb-4">₹{product.price}</div>
@@ -119,16 +114,19 @@ const Product = () => {
                     {product.condition}
                   </span>
                 )}
-                {product.seller_name && (
-                  <span className="bg-purple-50 text-purple-700 px-3 py-2 rounded-lg flex items-center gap-2 font-semibold border border-purple-200">
-                    <UserIcon size={16} />
-                    {product.seller_name}
+                {product.status && (
+                  <span className={`px-3 py-2 rounded-lg flex items-center gap-2 font-semibold border ${
+                    product.status === 'Available' 
+                      ? 'bg-green-50 text-green-700 border-green-200' 
+                      : 'bg-red-50 text-red-700 border-red-200'
+                  }`}>
+                    <Package size={16} />
+                    {product.status}
                   </span>
                 )}
-                {product.seller && (
-                  <span className="bg-purple-50 text-purple-700 px-3 py-2 rounded-lg flex items-center gap-2 font-semibold border border-purple-200">
-                    <UserIcon size={16} />
-                    {product.seller}
+                {product.quantity && (
+                  <span className="bg-gray-50 text-gray-700 px-3 py-2 rounded-lg flex items-center gap-2 font-semibold border border-gray-200">
+                    Quantity: {product.quantity}
                   </span>
                 )}
               </div>
@@ -158,10 +156,10 @@ const Product = () => {
                     <span className="ml-2 text-gray-800">{product.model}</span>
                   </div>
                 )}
-                {product.year && (
+                {(product.year || product.year_of_manufacture) && (
                   <div>
                     <span className="text-gray-500 font-medium">Year:</span>
-                    <span className="ml-2 text-gray-800">{product.year}</span>
+                    <span className="ml-2 text-gray-800">{product.year || product.year_of_manufacture}</span>
                   </div>
                 )}
                 {product.color && (
@@ -180,6 +178,32 @@ const Product = () => {
                   <div>
                     <span className="text-gray-500 font-medium">Weight:</span>
                     <span className="ml-2 text-gray-800">{product.weight} kg</span>
+                  </div>
+                )}
+                {product.dimensions && (
+                  <div className="col-span-2">
+                    <span className="text-gray-500 font-medium">Dimensions:</span>
+                    <span className="ml-2 text-gray-800">
+                      {product.dimensions.length} x {product.dimensions.width} x {product.dimensions.height} cm
+                    </span>
+                  </div>
+                )}
+                {product.original_packaging !== undefined && (
+                  <div>
+                    <span className="text-gray-500 font-medium">Original Packaging:</span>
+                    <span className="ml-2 text-gray-800">{product.original_packaging ? 'Yes' : 'No'}</span>
+                  </div>
+                )}
+                {product.manual_included !== undefined && (
+                  <div>
+                    <span className="text-gray-500 font-medium">Manual Included:</span>
+                    <span className="ml-2 text-gray-800">{product.manual_included ? 'Yes' : 'No'}</span>
+                  </div>
+                )}
+                {product.working_condition_description && (
+                  <div className="col-span-2">
+                    <span className="text-gray-500 font-medium">Working Condition:</span>
+                    <span className="ml-2 text-gray-800">{product.working_condition_description}</span>
                   </div>
                 )}
               </div>
@@ -225,18 +249,18 @@ const Product = () => {
         <div className="mt-12">
           <h2 className="text-2xl font-bold mb-6 text-gray-800">You might also like</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-            {products
-              .filter(p => p.category === product.category && p.id !== product.id)
+            {relatedProducts
+              .filter(p => p.category === product.category && p._id !== product._id && p.status === 'Available')
               .slice(0, 4)
               .map(p => (
-                <div key={p.id} className="bg-white rounded-xl p-4 shadow-lg hover:shadow-xl transition-all border border-gray-200">
+                <div key={p._id} className="bg-white rounded-xl p-4 shadow-lg hover:shadow-xl transition-all border border-gray-200">
                   <div className="h-32 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg mb-3 flex items-center justify-center">
-                    <img src={p.image} alt={p.title} className="max-h-28 object-contain" />
+                    <img src={p.image} alt={p.product_title} className="max-h-28 object-contain" />
                   </div>
-                  <div className="font-semibold text-sm mb-1 text-gray-800">{p.title}</div>
+                  <div className="font-semibold text-sm mb-1 text-gray-800">{p.product_title}</div>
                   <div className="text-emerald-600 font-bold mb-3">₹{p.price}</div>
                   <button 
-                    onClick={() => window.location.href = `/product/${p.id}`}
+                    onClick={() => window.location.href = `/product/${p._id}`}
                     className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white px-3 py-2 rounded-lg text-sm transition-all shadow-md"
                   >
                     View Details

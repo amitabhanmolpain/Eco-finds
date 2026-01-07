@@ -4,6 +4,7 @@ import { Leaf, Target, Flame, Star, ShoppingCart, CheckCircle, Sparkles, Package
 import Navbar from "./Navbar";
 import BannerCarousel from './BannerCarousel';
 import productsData from '../constants/products';
+import { getCategoryImage, CATEGORY_IMAGES } from '../utils/categoryImages';
 
 const CART_KEY = "hc_cart";
 const LISTINGS_KEY = 'hc_listings';
@@ -69,11 +70,11 @@ const LandingPage = () => {
   }
 
   // For demo purposes, create categories from available products
-  const categories = products.length > 0 ? [...new Set(products.map(p => p.category))].map(cat => ({
-    id: cat,
-    name: cat,
-    image: 'https://images.pexels.com/photos/1350789/pexels-photo-1350789.jpeg' // Placeholder category image
-  })) : [];
+  const categories = Object.entries(CATEGORY_IMAGES).map(([name, image]) => ({
+    id: name,
+    name: name,
+    image: image
+  }));
 
   // Curated sections - simple approach for integration
   const recentProducts = products.slice(0, 6);
